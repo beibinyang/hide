@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件隐藏到文档工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#64748B'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .dropzone-active {
+                @apply border-primary bg-primary/5;
+            }
+            .pulse {
+                animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            @keyframes pulse {
+                0%, 100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.7;
+                }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4">
+            <h1 class="text-2xl font-bold text-primary flex items-center">
+                <i class="fa fa-file-text-o mr-2"></i>文档隐写工具
+            </h1>
+            <p class="text-gray-600 mt-1">将文件隐藏到文本文档中，不影响文档正常阅读</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid md:grid-cols-2 gap-8 mb-8">
+            <!-- 隐藏文件到文档 -->
+            <div class="bg-white rounded-xl shadow p-6 transition-all duration-300 hover:shadow-lg">
+                <h2 class="text-xl font-bold mb-6 text-primary flex items-center">
+                    <i class="fa fa-lock mr-2"></i>隐藏文件到文档
+                </h2>
+                
+                <div class="space-y-6">
+                    <!-- 选择载体文档 -->
+                    <div>
+                        <label class="block text-gray-700 mb-2 font-medium">载体文档</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer" id="carrier-dropzone">
+                            <input type="file" id="carrier-file" accept=".txt,.md,.html,.css,.js,.csv" class="hidden">
+                            <i class="fa fa-file-text text-4xl text-gray-400 mb-2"></i>
+                            <p class="text-gray-500">点击或拖拽文档到这里</p>
+                            <p class="text-gray-400 text-sm mt-1">支持: TXT, MD, HTML, CSS, JS, CSV</p>
+                        </div>
+                        <div id="carrier-info" class="mt-4 hidden">
+                            <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+                                <i class="fa fa-file-text-o text-primary mr-2"></i>
+                                <div>
+                                    <p id="carrier-name" class="font-medium"></p>
+                                    <p id="carrier-size" class="text-sm text-gray-500"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 选择要隐藏的文件 -->
+                    <div>
+                        <label class="block text-gray-700 mb-2 font-medium">要隐藏的文件</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer" id="file-to-hide-dropzone">
+                            <input type="file" id="file-to-hide" class="hidden">
+                            <i class="fa fa-file-o text-4xl text-gray-400 mb-2"></i>
+                            <p class="text-gray-500">点击或拖拽文件到这里</p>
+                            <p class="text-gray-400 text-sm mt-1">支持任意类型文件</p>
+                        </div>
+                        <div id="file-info" class="mt-4 hidden">
+                            <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+                                <i class="fa fa-file-o text-primary mr-2"></i>
+                                <div>
+                                    <p id="file-name" class="font-medium"></p>
+                                    <p id="file-size" class="text-sm text-gray-500"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 安全选项 -->
+                    <div>
+                        <label class="block text-gray-700 mb-2 font-medium">安全选项</label>
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="encrypt-data" class="mr-2">
+                            <label for="encrypt-data">加密隐藏的文件</label>
+                        </div>
+                        <div id="password-container" class="hidden pl-6">
+                            <input type="password" id="encryption-password" placeholder="设置密码" 
+                                   class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        </div>
+                    </div>
+                    
+                    <!-- 隐藏按钮 -->
+                    <button id="hide-button" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg shadow transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-magic mr-2"></i>隐藏文件到文档
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 从文档提取文件 -->
+            <div class="bg-white rounded-xl shadow p-6 transition-all duration-300 hover:shadow-lg">
+                <h2 class="text-xl font-bold mb-6 text-secondary flex items-center">
+                    <i class="fa fa-unlock mr-2"></i>从文档提取文件
+                </h2>
+                
+                <div class="space-y-6">
+                    <!-- 选择包含隐藏文件的文档 -->
+                    <div>
+                        <label class="block text-gray-700 mb-2 font-medium">包含隐藏文件的文档</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-secondary transition-colors cursor-pointer" id="extract-dropzone">
+                            <input type="file" id="extract-file" accept=".txt,.md,.html,.css,.js,.csv" class="hidden">
+                            <i class="fa fa-file-text text-4xl text-gray-400 mb-2"></i>
+                            <p class="text-gray-500">点击或拖拽文档到这里</p>
+                            <p class="text-gray-400 text-sm mt-1">支持: TXT, MD, HTML, CSS, JS, CSV</p>
+                        </div>
+                        <div id="extract-info" class="mt-4 hidden">
+                            <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+                                <i class="fa fa-file-text-o text-secondary mr-2"></i>
+                                <div>
+                                    <p id="extract-name" class="font-medium"></p>
+                                    <p id="extract-size" class="text-sm text-gray-500"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 提取密码 -->
+                    <div id="extract-password-container" class="hidden">
+                        <label class="block text-gray-700 mb-2 font-medium">提取密码（如果有）</label>
+                        <input type="password" id="extract-password" placeholder="输入密码" 
+                               class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    </div>
+                    
+                    <!-- 提取按钮 -->
+                    <button id="extract-button" class="w-full bg-secondary hover:bg-secondary/90 text-white font-medium py-3 px-4 rounded-lg shadow transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fa fa-download mr-2"></i>从文档提取文件
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 处理状态 -->
+        <div id="processing" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 hidden">
+            <div class="flex items-center">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-3"></div>
+                <p class="text-blue-800" id="processing-message">正在处理...</p>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                <div id="processing-progress" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <!-- 结果区域 -->
+        <div id="success-result" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-8 hidden">
+            <h3 class="font-medium text-green-800 flex items-center">
+                <i class="fa fa-check-circle mr-2"></i>操作成功
+            </h3>
+            <div id="success-content" class="mt-2">
+                <p class="text-gray-700" id="success-message"></p>
+                <button id="download-result" class="mt-3 bg-secondary hover:bg-secondary/90 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors pulse">
+                    <i class="fa fa-download mr-1"></i>下载结果文件
+                </button>
+            </div>
+        </div>
+        
+        <div id="error-result" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-8 hidden">
+            <h3 class="font-medium text-red-800 flex items-center">
+                <i class="fa fa-exclamation-circle mr-2"></i>操作失败
+            </h3>
+            <p class="text-red-700 mt-2" id="error-message"></p>
+        </div>
+        
+        <!-- 隐写原理说明 -->
+        <div class="bg-white rounded-xl shadow p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-neutral">
+                <i class="fa fa-info-circle mr-2"></i>文档隐写原理
+            </h2>
+            <p class="text-gray-600 mb-4">
+                本工具使用特殊的文本隐写技术，将文件数据编码后隐藏在文档内容的末尾。通过添加特殊的分隔符标记隐藏数据的开始，
+                普通用户打开文档时不会察觉到任何异常，只有使用本工具才能提取出隐藏的文件。
+            </p>
+            <div class="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                    <h3 class="font-medium text-primary mb-2">隐藏过程</h3>
+                    <ol class="list-decimal pl-5 space-y-1">
+                        <li>读取载体文档内容</li>
+                        <li>将待隐藏文件转换为Base64编码</li>
+                        <li>（可选）使用AES加密编码后的数据</li>
+                        <li>添加特殊分隔符和文件元数据</li>
+                        <li>将处理后的数据附加到文档末尾</li>
+                    </ol>
+                </div>
+                <div>
+                    <h3 class="font-medium text-secondary mb-2">提取过程</h3>
+                    <ol class="list-decimal pl-5 space-y-1">
+                        <li>读取包含隐藏数据的文档</li>
+                        <li>查找特殊分隔符定位隐藏数据</li>
+                        <li>解析文件元数据（文件名、大小等）</li>
+                        <li>（如果需要）使用密码解密数据</li>
+                        <li>将Base64数据解码为原始文件</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t mt-12 py-6">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>文档隐写工具 - 所有操作均在本地完成，保护您的数据安全</p>
+        </div>
+    </footer>
+
+    <script>
+        // 全局状态
+        const state = {
+            carrierFile: null,       // 载体文档
+            fileToHide: null,        // 要隐藏的文件
+            extractFile: null,       // 要提取的文档
+            resultFile: null,        // 处理后的结果文件
+            resultFileName: ''       // 结果文件名称
+        };
+
+        // DOM元素引用
+        const elements = {
+            // 隐藏文件相关
+            carrierDropzone: document.getElementById('carrier-dropzone'),
+            carrierFile: document.getElementById('carrier-file'),
+            carrierInfo: document.getElementById('carrier-info'),
+            carrierName: document.getElementById('carrier-name'),
+            carrierSize: document.getElementById('carrier-size'),
+            
+            fileToHideDropzone: document.getElementById('file-to-hide-dropzone'),
+            fileToHide: document.getElementById('file-to-hide'),
+            fileInfo: document.getElementById('file-info'),
+            fileName: document.getElementById('file-name'),
+            fileSize: document.getElementById('file-size'),
+            
+            encryptData: document.getElementById('encrypt-data'),
+            passwordContainer: document.getElementById('password-container'),
+            encryptionPassword: document.getElementById('encryption-password'),
+            hideButton: document.getElementById('hide-button'),
+            
+            // 提取文件相关
+            extractDropzone: document.getElementById('extract-dropzone'),
+            extractFile: document.getElementById('extract-file'),
+            extractInfo: document.getElementById('extract-info'),
+            extractName: document.getElementById('extract-name'),
+            extractSize: document.getElementById('extract-size'),
+            extractPasswordContainer: document.getElementById('extract-password-container'),
+            extractPassword: document.getElementById('extract-password'),
+            extractButton: document.getElementById('extract-button'),
+            
+            // 状态和结果
+            processing: document.getElementById('processing'),
+            processingMessage: document.getElementById('processing-message'),
+            processingProgress: document.getElementById('processing-progress'),
+            successResult: document.getElementById('success-result'),
+            successMessage: document.getElementById('success-message'),
+            downloadResult: document.getElementById('download-result'),
+            errorResult: document.getElementById('error-result'),
+            errorMessage: document.getElementById('error-message')
+        };
+
+        // 特殊分隔符 - 用于标记隐藏数据的开始
+        const SEPARATOR = '=====FILE_STEGANOGRAPHY_SEPARATOR=====';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+        });
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 加密选项切换
+            elements.encryptData.addEventListener('change', () => {
+                elements.passwordContainer.classList.toggle('hidden', !elements.encryptData.checked);
+            });
+            
+            // 载体文档拖放
+            setupDropzone(
+                elements.carrierDropzone,
+                elements.carrierFile,
+                handleCarrierFileSelect
+            );
+            
+            // 要隐藏的文件拖放
+            setupDropzone(
+                elements.fileToHideDropzone,
+                elements.fileToHide,
+                handleFileToHideSelect
+            );
+            
+            // 提取文件拖放
+            setupDropzone(
+                elements.extractDropzone,
+                elements.extractFile,
+                handleExtractFileSelect
+            );
+            
+            // 按钮点击事件
+            elements.hideButton.addEventListener('click', hideFileInDocument);
+            elements.extractButton.addEventListener('click', extractFileFromDocument);
+            elements.downloadResult.addEventListener('click', downloadResult);
+        }
+
+        // 设置拖放区域
+        function setupDropzone(dropzone, inputElement, handleSelect) {
+            // 点击区域触发文件选择
+            dropzone.addEventListener('click', () => {
+                inputElement.click();
+            });
+            
+            // 文件选择变化
+            inputElement.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleSelect(e.target.files[0]);
+                }
+            });
+            
+            // 拖放事件
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dropzone-active');
+            });
+            
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dropzone-active');
+            });
+            
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dropzone-active');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    handleSelect(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        // 处理载体文件选择
+        function handleCarrierFileSelect(file) {
+            state.carrierFile = file;
+            
+            // 显示文件信息
+            elements.carrierName.textContent = file.name;
+            elements.carrierSize.textContent = `大小: ${formatFileSize(file.size)}`;
+            elements.carrierInfo.classList.remove('hidden');
+            
+            // 更新按钮状态
+            updateHideButtonState();
+        }
+
+        // 处理要隐藏的文件选择
+        function handleFileToHideSelect(file) {
+            state.fileToHide = file;
+            
+            // 显示文件信息
+            elements.fileName.textContent = file.name;
+            elements.fileSize.textContent = `大小: ${formatFileSize(file.size)}`;
+            elements.fileInfo.classList.remove('hidden');
+            
+            // 更新按钮状态
+            updateHideButtonState();
+        }
+
+        // 处理提取文件选择
+        function handleExtractFileSelect(file) {
+            state.extractFile = file;
+            
+            // 显示文件信息
+            elements.extractName.textContent = file.name;
+            elements.extractSize.textContent = `大小: ${formatFileSize(file.size)}`;
+            elements.extractInfo.classList.remove('hidden');
+            
+            // 显示密码输入框（可选）
+            elements.extractPasswordContainer.classList.remove('hidden');
+            
+            // 启用提取按钮
+            elements.extractButton.disabled = false;
+        }
+
+        // 更新隐藏按钮状态
+        function updateHideButtonState() {
+            elements.hideButton.disabled = !(state.carrierFile && state.fileToHide);
+        }
+
+        // 隐藏文件到文档
+        async function hideFileInDocument() {
+            try {
+                showProcessing('正在读取载体文档...', 10);
+                
+                // 读取载体文档内容
+                const carrierContent = await readFileAsText(state.carrierFile);
+                
+                showProcessing('正在处理要隐藏的文件...', 30);
+                
+                // 读取要隐藏的文件并转换为Base64
+                const fileData = await readFileAsArrayBuffer(state.fileToHide);
+                const base64Data = arrayBufferToBase64(fileData);
+                
+                // 准备元数据和内容
+                const metadata = {
+                    fileName: state.fileToHide.name,
+                    fileSize: state.fileToHide.size,
+                    encrypted: elements.encryptData.checked,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // 如果需要加密
+                let contentToHide = base64Data;
+                if (elements.encryptData.checked) {
+                    const password = elements.encryptionPassword.value;
+                    if (!password) {
+                        showError('请设置加密密码');
+                        return;
+                    }
+                    
+                    showProcessing('正在加密文件...', 40);
+                    contentToHide = await encryptData(contentToHide, password);
+                }
+                
+                // 构建要隐藏的数据
+                const hiddenData = JSON.stringify(metadata) + '\n' + contentToHide;
+                
+                showProcessing('正在嵌入数据...', 60);
+                
+                // 移除文档中可能已存在的隐藏数据
+                const cleanContent = removeExistingHiddenData(carrierContent);
+                
+                // 将隐藏数据添加到文档末尾
+                const newContent = cleanContent + '\n' + SEPARATOR + '\n' + hiddenData;
+                
+                showProcessing('正在生成结果文档...', 80);
+                
+                // 创建结果文件
+                const blob = new Blob([newContent], { type: 'text/plain' });
+                state.resultFile = blob;
+                
+                // 生成结果文件名
+                const ext = getFileExtension(state.carrierFile.name);
+                state.resultFileName = ext 
+                    ? state.carrierFile.name.replace(`.${ext}`, `_hidden.${ext}`)
+                    : state.carrierFile.name + '_hidden';
+                
+                showProcessing('完成', 100);
+                
+                // 显示成功消息
+                setTimeout(() => {
+                    showSuccess(`文件已成功隐藏到文档中，原始文档大小: ${formatFileSize(state.carrierFile.size)}`);
+                }, 500);
+                
+            } catch (error) {
+                console.error('隐藏文件失败:', error);
+                showError(`隐藏文件失败: ${error.message || '未知错误'}`);
+            }
+        }
+
+        // 从文档提取文件
+        async function extractFileFromDocument() {
+            try {
+                showProcessing('正在读取文档...', 20);
+                
+                // 读取文档内容
+                const content = await readFileAsText(state.extractFile);
+                
+                showProcessing('正在查找隐藏数据...', 40);
+                
+                // 查找分隔符
+                const separatorIndex = content.indexOf(SEPARATOR);
+                if (separatorIndex === -1) {
+                    showError('未在文档中找到隐藏的文件');
+                    return;
+                }
+                
+                // 提取隐藏的数据
+                const hiddenData = content.substring(separatorIndex + SEPARATOR.length).trim();
+                const [metadataStr, ...contentParts] = hiddenData.split('\n');
+                const contentToExtract = contentParts.join('\n');
+                
+                if (!metadataStr || !contentToExtract) {
+                    showError('文档中的隐藏数据格式不正确');
+                    return;
+                }
+                
+                // 解析元数据
+                const metadata = JSON.parse(metadataStr);
+                
+                showProcessing('正在提取文件...', 60);
+                
+                // 如果数据被加密，进行解密
+                let decodedData = contentToExtract;
+                if (metadata.encrypted) {
+                    const password = elements.extractPassword.value;
+                    if (!password) {
+                        showError('该文件被加密，请输入密码');
+                        return;
+                    }
+                    
+                    showProcessing('正在解密...', 70);
+                    try {
+                        decodedData = await decryptData(decodedData, password);
+                    } catch (e) {
+                        showError('解密失败，可能是密码不正确');
+                        return;
+                    }
+                }
+                
+                // 将Base64转换回文件
+                const fileData = base64ToArrayBuffer(decodedData);
+                
+                // 验证文件大小
+                if (fileData.byteLength !== metadata.fileSize) {
+                    console.warn(`文件大小不匹配: 预期 ${metadata.fileSize}, 实际 ${fileData.byteLength}`);
+                }
+                
+                showProcessing('完成', 100);
+                
+                // 创建结果文件
+                const blob = new Blob([fileData]);
+                state.resultFile = blob;
+                state.resultFileName = metadata.fileName;
+                
+                // 显示成功消息
+                setTimeout(() => {
+                    showSuccess(`文件已成功提取，文件名: ${metadata.fileName}, 大小: ${formatFileSize(metadata.fileSize)}`);
+                }, 500);
+                
+            } catch (error) {
+                console.error('提取文件失败:', error);
+                showError(`提取文件失败: ${error.message || '未知错误'}`);
+            }
+        }
+
+        // 下载结果文件
+        function downloadResult() {
+            if (state.resultFile && state.resultFileName) {
+                const url = URL.createObjectURL(state.resultFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = state.resultFileName;
+                document.body.appendChild(a);
+                a.click();
+                
+                // 清理
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            }
+        }
+
+        // 移除文档中已存在的隐藏数据
+        function removeExistingHiddenData(content) {
+            const separatorIndex = content.indexOf(SEPARATOR);
+            return separatorIndex === -1 ? content : content.substring(0, separatorIndex).trimEnd();
+        }
+
+        // 工具函数: 读取文件为文本
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsText(file);
+            });
+        }
+
+        // 工具函数: 读取文件为ArrayBuffer
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 工具函数: ArrayBuffer转换为Base64
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            
+            return btoa(binary);
+        }
+
+        // 工具函数: Base64转换为ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            
+            return bytes.buffer;
+        }
+
+        // 工具函数: 获取文件扩展名
+        function getFileExtension(filename) {
+            return filename.split('.').pop() !== filename ? filename.split('.').pop() : '';
+        }
+
+        // 工具函数: 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            else if (bytes < 1048576) return `${(bytes / 1024).toFixed(2)} KB`;
+            else return `${(bytes / 1048576).toFixed(2)} MB`;
+        }
+
+        // 加密数据 (使用Web Crypto API)
+        async function encryptData(data, password) {
+            // 创建密钥
+            const encoder = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                { name: 'AES-GCM' },
+                false,
+                ['encrypt', 'decrypt']
+            );
+            
+            // 生成随机盐
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            
+            // 加密
+            const encrypted = await window.crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                keyMaterial,
+                encoder.encode(data)
+            );
+            
+            // 组合IV和加密数据
+            const combined = new Uint8Array(iv.length + encrypted.byteLength);
+            combined.set(iv, 0);
+            combined.set(new Uint8Array(encrypted), iv.length);
+            
+            return arrayBufferToBase64(combined.buffer);
+        }
+
+        // 解密数据
+        async function decryptData(encryptedData, password) {
+            try {
+                // 转换为ArrayBuffer
+                const buffer = base64ToArrayBuffer(encryptedData);
+                const combined = new Uint8Array(buffer);
+                
+                // 提取IV和加密数据
+                const iv = combined.slice(0, 12);
+                const data = combined.slice(12);
+                
+                // 创建密钥
+                const encoder = new TextEncoder();
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    'raw',
+                    encoder.encode(password),
+                    { name: 'AES-GCM' },
+                    false,
+                    ['encrypt', 'decrypt']
+                );
+                
+                // 解密
+                const decrypted = await window.crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    keyMaterial,
+                    data
+                );
+                
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                throw new Error('解密失败: ' + e.message);
+            }
+        }
+
+        // 显示处理状态
+        function showProcessing(message, progress) {
+            elements.processingMessage.textContent = message;
+            elements.processingProgress.style.width = `${progress}%`;
+            elements.processing.classList.remove('hidden');
+            elements.successResult.classList.add('hidden');
+            elements.errorResult.classList.add('hidden');
+        }
+
+        // 显示成功消息
+        function showSuccess(message) {
+            elements.successMessage.textContent = message;
+            elements.successResult.classList.remove('hidden');
+            elements.processing.classList.add('hidden');
+            elements.errorResult.classList.add('hidden');
+            
+            // 滚动到结果区域
+            elements.successResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // 显示错误消息
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorResult.classList.remove('hidden');
+            elements.processing.classList.add('hidden');
+            elements.successResult.classList.add('hidden');
+            
+            // 滚动到错误区域
+            elements.errorResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+</body>
+</html>
+    

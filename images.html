@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轻量版文件隐藏工具-阿乐源码网-http://ale.leleyangyang.top:9983/</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        .dropzone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .dropzone:hover {
+            border-color: #3B82F6;
+        }
+        .status {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+    <div class="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-md">
+        <h1 class="text-2xl font-bold text-center mb-6 text-blue-600">轻量版文件隐藏工具-阿乐源码网</h1>
+        
+        <!-- 隐藏文件区域 -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">隐藏文件到图片</h2>
+            
+            <div class="mb-4">
+                <label class="block mb-2 font-medium">选择载体图片 (860×600像素最佳)</label>
+                <div class="dropzone" id="carrierDropzone">
+                    <i class="fa fa-image text-4xl text-gray-400 mb-2"></i>
+                    <p>点击或拖拽图片到这里</p>
+                    <input type="file" id="carrierImage" accept="image/jpeg,image/png" class="hidden">
+                </div>
+                <div id="carrierPreview" class="mt-2 hidden">
+                    <img id="carrierImg" src="" alt="预览" class="max-h-40 rounded">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block mb-2 font-medium">选择要隐藏的文件</label>
+                <div class="dropzone" id="fileDropzone">
+                    <i class="fa fa-file text-4xl text-gray-400 mb-2"></i>
+                    <p>点击或拖拽文件到这里</p>
+                    <input type="file" id="fileToHide" class="hidden">
+                </div>
+                <div id="fileInfo" class="mt-2 hidden">
+                    <p id="fileName"></p>
+                </div>
+            </div>
+            
+            <button id="hideButton" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50" disabled>
+                隐藏文件
+            </button>
+        </div>
+        
+        <!-- 提取文件区域 -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">提取隐藏文件</h2>
+            
+            <div class="mb-4">
+                <label class="block mb-2 font-medium">选择包含隐藏文件的图片</label>
+                <div class="dropzone" id="extractDropzone">
+                    <i class="fa fa-image text-4xl text-gray-400 mb-2"></i>
+                    <p>点击或拖拽图片到这里</p>
+                    <input type="file" id="extractImage" accept="image/jpeg,image/png" class="hidden">
+                </div>
+            </div>
+            
+            <button id="extractButton" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50" disabled>
+                提取文件
+            </button>
+        </div>
+        
+        <!-- 状态和结果 -->
+        <div id="status" class="status hidden bg-blue-50 text-blue-800"></div>
+        <div id="result" class="status hidden bg-green-50 text-green-800"></div>
+        <div id="error" class="status hidden bg-red-50 text-red-800"></div>
+    </div>
+
+    <script>
+        let carrierImageData = null;
+        let fileToHideData = null;
+        let extractImageData = null;
+        let extractedFile = null;
+
+        // DOM元素
+        const carrierDropzone = document.getElementById('carrierDropzone');
+        const carrierImage = document.getElementById('carrierImage');
+        const carrierPreview = document.getElementById('carrierPreview');
+        const carrierImg = document.getElementById('carrierImg');
+        
+        const fileDropzone = document.getElementById('fileDropzone');
+        const fileToHide = document.getElementById('fileToHide');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        
+        const hideButton = document.getElementById('hideButton');
+        const extractDropzone = document.getElementById('extractDropzone');
+        const extractImage = document.getElementById('extractImage');
+        const extractButton = document.getElementById('extractButton');
+        
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+
+        // 初始化事件
+        function init() {
+            // 载体图片
+            carrierDropzone.addEventListener('click', () => carrierImage.click());
+            carrierImage.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleCarrierImage(e.target.files[0]);
+            });
+            
+            // 待隐藏文件
+            fileDropzone.addEventListener('click', () => fileToHide.click());
+            fileToHide.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleFileToHide(e.target.files[0]);
+            });
+            
+            // 提取图片
+            extractDropzone.addEventListener('click', () => extractImage.click());
+            extractImage.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleExtractImage(e.target.files[0]);
+            });
+            
+            // 按钮
+            hideButton.addEventListener('click', hideFile);
+            extractButton.addEventListener('click', extractFile);
+        }
+
+        // 处理载体图片
+        function handleCarrierImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    carrierImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    carrierImg.src = e.target.result;
+                    carrierPreview.classList.remove('hidden');
+                    checkHideButton();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 处理待隐藏文件
+        function handleFileToHide(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                fileToHideData = {
+                    name: file.name,
+                    data: e.target.result
+                };
+                fileName.textContent = `已选择: ${file.name} (${formatSize(file.size)})`;
+                fileInfo.classList.remove('hidden');
+                checkHideButton();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 处理提取图片
+        function handleExtractImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    extractImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    extractButton.disabled = false;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 检查隐藏按钮状态
+        function checkHideButton() {
+            hideButton.disabled = !(carrierImageData && fileToHideData);
+        }
+
+        // 隐藏文件（优化版：减少循环嵌套和临时变量）
+        function hideFile() {
+            showStatus('正在隐藏文件...');
+            
+            // 准备文件数据（仅包含文件名和内容，简化元数据）
+            const nameBytes = new TextEncoder().encode(fileToHideData.name);
+            const nameLen = new Uint16Array([nameBytes.length]); // 用2字节存储文件名长度
+            const fileData = new Uint8Array(fileToHideData.data);
+            
+            // 合并所有数据（文件名长度 + 文件名 + 文件内容 + 结束标记(4字节0)）
+            const totalLen = nameLen.byteLength + nameBytes.length + fileData.length + 4;
+            const data = new Uint8Array(totalLen);
+            let offset = 0;
+            
+            // 写入文件名长度
+            data.set(new Uint8Array(nameLen.buffer), offset);
+            offset += nameLen.byteLength;
+            
+            // 写入文件名
+            data.set(nameBytes, offset);
+            offset += nameBytes.length;
+            
+            // 写入文件内容
+            data.set(fileData, offset);
+            offset += fileData.length;
+            
+            // 写入结束标记
+            data.set([0, 0, 0, 0], offset);
+            
+            // 快速嵌入数据（优化循环）
+            const pixels = carrierImageData.data;
+            const totalBits = data.length * 8;
+            let bitIndex = 0;
+            
+            // 合并循环，减少函数调用和判断
+            for (let i = 0; i < pixels.length && bitIndex < totalBits; i += 4) {
+                for (let c = 0; c < 3; c++) { // RGB三个通道
+                    if (bitIndex >= totalBits) break;
+                    
+                    const byte = data[Math.floor(bitIndex / 8)];
+                    const bit = (byte >> (7 - (bitIndex % 8))) & 1;
+                    pixels[i + c] = (pixels[i + c] & 0xFE) | bit;
+                    bitIndex++;
+                }
+            }
+            
+            // 生成结果图片
+            const canvas = document.createElement('canvas');
+            canvas.width = carrierImageData.width;
+            canvas.height = carrierImageData.height;
+            canvas.getContext('2d').putImageData(carrierImageData, 0, 0);
+            
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                showResult(`<a href="${url}" download="hidden_image.png" class="text-green-700 font-medium">点击下载包含隐藏文件的图片</a>`);
+            });
+        }
+
+        // 提取文件（简化版）
+        function extractFile() {
+            showStatus('正在提取文件...');
+            
+            const pixels = extractImageData.data;
+            const bits = [];
+            let endMarker = 0;
+            
+            // 提取比特位（简化判断）
+            for (let i = 0; i < pixels.length; i += 4) {
+                for (let c = 0; c < 3; c++) {
+                    bits.push(pixels[i + c] & 1);
+                    
+                    // 检测结束标记（连续32个0）
+                    if (bits[bits.length - 1] === 0) {
+                        endMarker++;
+                        if (endMarker === 32) {
+                            bits.splice(-32); // 移除结束标记
+                            i = pixels.length; // 跳出外层循环
+                            break;
+                        }
+                    } else {
+                        endMarker = 0;
+                    }
+                }
+            }
+            
+            // 转换为字节
+            const bytes = [];
+            for (let i = 0; i < bits.length; i += 8) {
+                let byte = 0;
+                for (let j = 0; j < 8; j++) {
+                    if (i + j < bits.length) byte = (byte << 1) | bits[i + j];
+                }
+                bytes.push(byte);
+            }
+            
+            // 解析文件名和内容
+            let offset = 0;
+            const nameLen = new Uint16Array([bytes[offset], bytes[offset + 1]])[0];
+            offset += 2;
+            
+            const nameBytes = bytes.slice(offset, offset + nameLen);
+            offset += nameLen;
+            
+            const fileName = new TextDecoder().decode(new Uint8Array(nameBytes));
+            const fileData = new Uint8Array(bytes.slice(offset, bytes.length - 4)); // 移除结束标记
+            
+            // 创建下载
+            const blob = new Blob([fileData]);
+            const url = URL.createObjectURL(blob);
+            showResult(`<p>提取成功: ${fileName}</p><a href="${url}" download="${fileName}" class="text-green-700 font-medium">点击下载</a>`);
+        }
+
+        // 工具函数
+        function showStatus(text) {
+            status.textContent = text;
+            status.classList.remove('hidden');
+            result.classList.add('hidden');
+            error.classList.add('hidden');
+        }
+
+        function showResult(html) {
+            result.innerHTML = html;
+            result.classList.remove('hidden');
+            status.classList.add('hidden');
+            error.classList.add('hidden');
+        }
+
+        function formatSize(bytes) {
+            return bytes < 1024 ? `${bytes}B` : `${(bytes / 1024).toFixed(1)}KB`;
+        }
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
+    
