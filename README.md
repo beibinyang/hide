@@ -1,1 +1,1 @@
-https://github.com/beibinyang/hide http://hide.arcticocean.vvvv.host
+https://github.com/beibinyang/hide https://hide.cccccccc.qzz.io
